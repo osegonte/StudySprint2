@@ -1,0 +1,39 @@
+# StudySprint 2.0 Backend Dependencies
+
+# FastAPI and ASGI
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Database
+sqlalchemy==2.0.23
+alembic==1.12.1
+psycopg2-binary==2.9.9
+
+# Redis
+redis==5.0.1
+aioredis==2.0.1
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+
+# Configuration
+pydantic==2.5.0
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+
+# File handling
+python-magic==0.4.27
+Pillow==10.1.0
+
+# PDF processing
+PyPDF2==3.0.1
+pdf2image==1.16.3
+
+# HTTP client
+httpx==0.25.2
+
+# Utilities
+python-dateutil==2.8.2
+pytz==2023.3

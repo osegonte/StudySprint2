@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (using port 5433 to avoid conflicts)
+  postgres:
+    image: postgres:15
+    container_name: studysprint_postgres
+    environment:
+      POSTGRES_DB: studysprint2
+      POSTGRES_USER: studysprint
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5433:5432"  # Changed from 5432 to 5433
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/scripts:/docker-entrypoint-initdb.d
+    networks:
+      - studysprint_network
+
+  # Redis Cache (using port 6380 to avoid conflicts)
+  redis:
+    image: redis:7-alpine
+    container_name: studysprint_redis
+    ports:
+      - "6380:6379"  # Changed from 6379 to 6380
+    volumes:
+      - redis_data:/data
+    networks:
+      - studysprint_network
+
+  # Backend Development
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: studysprint_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=true
+      - DATABASE_URL=postgresql://studysprint:password@postgres:5432/studysprint2
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./backend:/app
+      - backend_storage:/app/storage
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - studysprint_network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  postgres_data:
+  redis_data:
+  backend_storage:
+
+networks:
+  studysprint_network:
+    driver: bridge
