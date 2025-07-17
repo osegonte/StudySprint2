@@ -1,34 +1,18 @@
 """
-Database configuration and connection management
+Database configuration using studysprint-db package
 """
 
-from sqlalchemy import create_engine, MetaData
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-import logging
-
-from app.config.settings import settings
-
-logger = logging.getLogger(__name__)
-
-# SQLAlchemy engine
-engine = create_engine(
-    settings.DATABASE_URL,
-    poolclass=StaticPool,
-    pool_pre_ping=True,
-    echo=settings.DEBUG  # Log SQL queries in debug mode
+from sqlalchemy import text
+from studysprint_db.config.database import (
+    Base, 
+    create_database_engine, 
+    create_session_factory
 )
+from studysprint_db.config.settings import db_settings
 
-# Session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# Base class for models
-Base = declarative_base()
-
-# Metadata instance for migrations
-metadata = MetaData()
-
+# Create engine and session factory
+engine = create_database_engine(db_settings.DATABASE_URL, echo=db_settings.DB_ECHO)
+SessionLocal = create_session_factory(engine)
 
 def get_db():
     """Dependency to get database session"""
@@ -38,19 +22,14 @@ def get_db():
     finally:
         db.close()
 
-
 async def init_db():
     """Initialize database tables"""
-    logger.info("Initializing database...")
-    # Import all models here to ensure they are registered with SQLAlchemy
-    # from app.models import user, topic, pdf, exercise, session, note
+    # Import all models to register them
+    import studysprint_db.models
     
     # Create all tables
     Base.metadata.create_all(bind=engine)
-    logger.info("Database initialized successfully")
-
 
 async def close_db():
     """Close database connections"""
-    logger.info("Closing database connections...")
     engine.dispose()

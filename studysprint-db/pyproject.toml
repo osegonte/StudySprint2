@@ -1,0 +1,108 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "studysprint-db"
+dynamic = ["version"]
+description = "StudySprint 2.0 Database Models and Migrations"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "StudySprint Team", email = "dev@studysprint.com"},
+]
+keywords = ["database", "sqlalchemy", "alembic", "study", "education"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Database",
+    "Topic :: Education",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dependencies = [
+    "SQLAlchemy>=2.0.0,<3.0.0",
+    "alembic>=1.12.0,<2.0.0",
+    "psycopg2-binary>=2.9.0,<3.0.0",
+    "pydantic>=2.5.0,<3.0.0",
+    "python-dateutil>=2.8.0,<3.0.0",
+    "uuid6>=2023.5.2",
+    "python-dotenv>=1.0.0,<2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.7.0",
+    "pre-commit>=3.5.0",
+]
+
+test = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+]
+
+[project.scripts]
+studysprint-db = "studysprint_db.cli:main"
+studysprint-migrate = "studysprint_db.cli:migrate_command"
+studysprint-init-db = "studysprint_db.cli:init_command"
+
+[project.urls]
+Homepage = "https://github.com/studysprint/studysprint-db"
+Documentation = "https://docs.studysprint.com/database"
+Repository = "https://github.com/studysprint/studysprint-db"
+Issues = "https://github.com/studysprint/studysprint-db/issues"
+
+[tool.setuptools.dynamic]
+version = {attr = "studysprint_db._version.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["studysprint_db*"]
+exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+"studysprint_db" = ["alembic.ini", "alembic/**/*"]
+
+# Black configuration
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+
+# isort configuration
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["studysprint_db"]
+
+# MyPy configuration
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+
+# Pytest configuration
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+addopts = [
+    "--strict-markers",
+    "--cov=studysprint_db",
+    "--cov-report=term-missing",
+]
