@@ -1,16 +1,17 @@
-from sqlalchemy import text"""
+"""
 StudySprint 2.0 - Main FastAPI Application
 """
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from sqlalchemy import text
 import time
 import logging
 from contextlib import asynccontextmanager
 
 from app.config.settings import settings
-from app.config.database import init_db, close_db
+from app.config.database import init_db, close_db, get_db
 from app.api.v1 import api_router
 
 # Configure logging

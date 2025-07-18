@@ -1,0 +1,77 @@
+"""Updated Docker Compose for Stage 3 development"""
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: studysprint_postgres_stage3
+    environment:
+      POSTGRES_DB: studysprint2
+      POSTGRES_USER: studysprint
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data_stage3:/var/lib/postgresql/data
+      - ./database/scripts:/docker-entrypoint-initdb.d
+    networks:
+      - studysprint_network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: studysprint_redis_stage3
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data_stage3:/data
+    networks:
+      - studysprint_network
+
+  # Backend Development
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: studysprint_backend_stage3
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=true
+      - DATABASE_URL=postgresql://studysprint:password@postgres:5432/studysprint2
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=dev-secret-key-change-in-production
+    volumes:
+      - .:/app
+      - backend_storage_stage3:/app/storage
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - studysprint_network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Database Admin (optional)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: studysprint_pgadmin_stage3
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@studysprint.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+    networks:
+      - studysprint_network
+
+volumes:
+  postgres_data_stage3:
+  redis_data_stage3:
+  backend_storage_stage3:
+
+networks:
+  studysprint_network:
+    driver: bridge

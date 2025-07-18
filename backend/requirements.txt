@@ -35,3 +35,16 @@ httpx==0.25.2
 # Utilities
 python-dateutil==2.8.2
 pytz==2023.3
+
+# Data processing (for future AI features)
+numpy==1.24.3
+pandas==2.0.3
+
+# Text processing (for search and content analysis)
+python-levenshtein==0.21.1
+
+# Async task queue (for background processing)
+celery==5.3.4
+
+# Caching
+python-memcached==1.62

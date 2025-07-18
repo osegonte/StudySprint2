@@ -18,13 +18,13 @@ class Settings(BaseSettings):
     
     # Database settings
     DATABASE_URL: str = Field(
-        default="postgresql://studysprint:password@localhost:5432/studysprint2",
+        default="postgresql://studysprint:password@localhost:5433/studysprint2",
         description="Database connection URL"
     )
     
     # Redis settings
     REDIS_URL: str = Field(
-        default="redis://localhost:6379/0",
+        default="redis://localhost:6380/0",
         description="Redis connection URL"
     )
     
@@ -41,11 +41,11 @@ class Settings(BaseSettings):
     
     # File storage settings
     UPLOAD_DIR: str = Field(default="storage/uploads", description="Upload directory")
-    MAX_FILE_SIZE: int = Field(default=100 * 1024 * 1024, description="Max file size (100MB)")
+    MAX_FILE_SIZE: int = Field(default=104857600, description="Max file size 100MB")
     
     # JWT settings
     JWT_ALGORITHM: str = Field(default="HS256", description="JWT algorithm")
-    JWT_EXPIRE_MINUTES: int = Field(default=60 * 24 * 7, description="JWT expiration (7 days)")
+    JWT_EXPIRE_MINUTES: int = Field(default=10080, description="JWT expiration 7 days")
     
     # Email settings (for future use)
     SMTP_HOST: str = Field(default="", description="SMTP host")
@@ -54,8 +54,17 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = Field(default="", description="SMTP password")
     
     class Config:
-        env_file = ".env"
+        # Don't read from .env file to avoid parsing issues
+        env_file = None
         case_sensitive = True
+        
+    def __init__(self, **kwargs):
+        # Remove problematic environment variables before initialization
+        problematic_vars = ['MAX_FILE_SIZE', 'JWT_EXPIRE_MINUTES']
+        for var in problematic_vars:
+            if var in os.environ:
+                del os.environ[var]
+        super().__init__(**kwargs)
 
 
 # Global settings instance

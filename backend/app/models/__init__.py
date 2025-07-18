@@ -1,10 +1,44 @@
-"""
-SQLAlchemy models package
-"""
+"""Models package - import from consolidated models"""
 
-# Import all models here for easy access
-# from .user import User, UserSession, UserPreferences
-# from .topic import Topic
-# from .pdf import PDF, ExerciseSet, Exercise, ExercisePageLink
-# from .session import StudySession, PageTime, ReadingSpeed, TimeEstimate, PomodoroSession
-# from .note import Note, NoteLink, NoteTag, Highlight, NoteAttachment, NoteGraphData
+# Import all models from the consolidated file
+from .consolidated import (
+    Topic,
+    PDF,
+    ExerciseSet,
+    Exercise,
+    ExercisePageLink,
+    StudySession,
+    PageTime,
+    PomodoroSession,
+    Note,
+    NoteLink,
+    NoteTag,
+    Highlight,
+    NoteAttachment,
+    ReadingSpeed,
+    TimeEstimate,
+    UserStatistic,
+    Goal,
+    GoalProgress,
+)
+
+__all__ = [
+    "Topic",
+    "PDF",
+    "ExerciseSet", 
+    "Exercise",
+    "ExercisePageLink",
+    "StudySession",
+    "PageTime",
+    "PomodoroSession",
+    "Note",
+    "NoteLink",
+    "NoteTag",
+    "Highlight",
+    "NoteAttachment",
+    "ReadingSpeed",
+    "TimeEstimate",
+    "UserStatistic",
+    "Goal",
+    "GoalProgress",
+]
