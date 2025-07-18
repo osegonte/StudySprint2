@@ -1,5 +1,5 @@
 # backend/app/schemas/consolidated.py
-# Updated with PDF schemas for Stage 3.3
+# Updated with Timer & Analytics schemas for Stage 3.4
 
 from pydantic import BaseModel, Field, validator
 from typing import Optional, List, Dict, Any, Union
@@ -8,7 +8,7 @@ from uuid import UUID
 from decimal import Decimal
 
 # ============================================================================
-# BASE SCHEMAS & MIXINS
+# BASE SCHEMAS & MIXINS (EXISTING)
 # ============================================================================
 
 class TimestampMixin(BaseModel):
@@ -23,7 +23,7 @@ class ProgressMixin(BaseModel):
     completed_at: Optional[datetime] = None
 
 # ============================================================================
-# TOPIC SCHEMAS (COMPLETED)
+# EXISTING SCHEMAS (TOPIC & PDF - COMPLETED)
 # ============================================================================
 
 class TopicBase(BaseModel):
@@ -59,10 +59,7 @@ class TopicWithStats(TopicResponse):
     """Topic with calculated statistics"""
     statistics: Dict[str, Any] = {}
 
-# ============================================================================
-# PDF SCHEMAS (STAGE 3.3 - NEW)
-# ============================================================================
-
+# PDF Schemas (existing - keeping for reference)
 class PDFBase(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
     pdf_type: str = Field(default="study", pattern=r"^(study|exercise|reference)$")
@@ -78,13 +75,6 @@ class PDFUpdate(BaseModel):
     difficulty_rating: Optional[int] = Field(None, ge=1, le=5)
     current_page: Optional[int] = Field(None, ge=1)
 
-class PDFUploadRequest(BaseModel):
-    """Schema for PDF upload requests"""
-    topic_id: UUID
-    title: Optional[str] = None  # If not provided, will use filename
-    pdf_type: str = Field(default="study", pattern=r"^(study|exercise|reference)$")
-    parent_pdf_id: Optional[UUID] = None
-    
 class PDFResponse(PDFBase, TimestampMixin, ProgressMixin):
     id: UUID
     user_id: UUID
@@ -105,156 +95,346 @@ class PDFResponse(PDFBase, TimestampMixin, ProgressMixin):
     actual_read_time: int = 0
     view_count: int = 0
     last_viewed_at: Optional[datetime] = None
-    
-    # Computed properties
     file_size_mb: Optional[float] = None
     reading_progress_percentage: Optional[float] = None
     
     class Config:
         from_attributes = True
 
-class PDFWithStats(PDFResponse):
-    """PDF with calculated statistics"""
-    statistics: Dict[str, Any] = {}
-
-class PDFListResponse(BaseModel):
-    """Response for PDF listing with pagination"""
-    pdfs: List[PDFResponse]
-    total_count: int
-    page: int
-    page_size: int
-    has_next: bool
-    has_previous: bool
-
-class ReadingPositionUpdate(BaseModel):
-    """Schema for updating reading position"""
-    page: int = Field(..., ge=1)
-    scroll_y: float = Field(default=0.0, ge=0.0)
-    zoom: float = Field(default=1.0, gt=0.0, le=5.0)
-
-class BookmarkCreate(BaseModel):
-    """Schema for creating bookmarks"""
-    page: int = Field(..., ge=1)
-    title: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
-
 # ============================================================================
-# EXERCISE SCHEMAS (STAGE 3.3 - NEW)
+# TIMER & ANALYTICS SCHEMAS (STAGE 3.4 - NEW)
 # ============================================================================
 
-class ExerciseSetBase(BaseModel):
-    title: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
-    difficulty_level: int = Field(default=1, ge=1, le=5)
-    estimated_time_minutes: int = Field(default=60, ge=5, le=480)
+class StudySessionBase(BaseModel):
+    session_type: str = Field(default="study", pattern=r"^(study|exercise|review|pomodoro)$")
+    notes: Optional[str] = None
 
-class ExerciseSetCreate(ExerciseSetBase):
-    main_pdf_id: UUID
+class StudySessionCreate(StudySessionBase):
+    pdf_id: UUID
+    topic_id: UUID
+    planned_cycles: int = Field(default=0, ge=0, le=20)
 
-class ExerciseSetUpdate(BaseModel):
-    title: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = None
-    difficulty_level: Optional[int] = Field(None, ge=1, le=5)
-    estimated_time_minutes: Optional[int] = Field(None, ge=5, le=480)
+class StudySessionUpdate(BaseModel):
+    session_type: Optional[str] = Field(None, pattern=r"^(study|exercise|review|pomodoro)$")
+    notes: Optional[str] = None
+    session_rating: Optional[int] = Field(None, ge=1, le=5)
 
-class ExerciseSetResponse(ExerciseSetBase, TimestampMixin, ProgressMixin):
+class StudySessionResponse(StudySessionBase, TimestampMixin):
     id: UUID
     user_id: UUID
-    main_pdf_id: UUID
-    total_exercises: int = 0
-    completed_exercises: int = 0
-    display_order: int = 0
+    pdf_id: UUID
+    topic_id: UUID
+    start_time: datetime
+    end_time: Optional[datetime] = None
+    total_minutes: int = 0
+    active_minutes: int = 0
+    idle_minutes: int = 0
+    break_minutes: int = 0
+    pages_visited: int = 0
+    pages_completed: int = 0
+    clicks_count: int = 0
+    scroll_events: int = 0
+    interruptions: int = 0
+    pomodoro_cycles: int = 0
+    planned_cycles: int = 0
+    focus_score: Decimal = 0.0
+    productivity_score: Decimal = 0.0
+    comprehension_score: Decimal = 0.0
+    xp_earned: int = 0
+    achievements_unlocked: List[str] = []
+    is_active: bool = True
+    is_paused: bool = False
+    pause_count: int = 0
+    session_rating: Optional[int] = None
+    
+    # Computed properties
+    duration_minutes: Optional[int] = None
+    efficiency_score: Optional[float] = None
+    
+    class Config:
+        from_attributes = True
+
+class StudySessionWithStats(StudySessionResponse):
+    """Study session with detailed statistics"""
+    statistics: Dict[str, Any] = {}
+    page_times: List[Dict[str, Any]] = []
+    pomodoro_cycles: List[Dict[str, Any]] = []
+
+class SessionActivityUpdate(BaseModel):
+    """Update session activity metrics"""
+    pages_visited: Optional[int] = Field(None, ge=0)
+    pages_completed: Optional[int] = Field(None, ge=0)
+    clicks_count: Optional[int] = Field(None, ge=0)
+    scroll_events: Optional[int] = Field(None, ge=0)
+    interruptions: Optional[int] = Field(None, ge=0)
+
+class SessionPauseRequest(BaseModel):
+    """Request to pause/resume session"""
+    reason: Optional[str] = None
+
+class SessionEndRequest(BaseModel):
+    """Request to end session"""
+    session_rating: Optional[int] = Field(None, ge=1, le=5)
+    notes: Optional[str] = None
+
+# ============================================================================
+# PAGE TIMING SCHEMAS
+# ============================================================================
+
+class PageTimeBase(BaseModel):
+    page_number: int = Field(..., ge=1)
+    estimated_words: int = Field(default=0, ge=0)
+
+class PageTimeCreate(PageTimeBase):
+    pdf_id: UUID
+    session_id: UUID
+
+class PageTimeUpdate(BaseModel):
+    activity_count: Optional[int] = Field(None, ge=0)
+    click_count: Optional[int] = Field(None, ge=0)
+    scroll_count: Optional[int] = Field(None, ge=0)
+    zoom_changes: Optional[int] = Field(None, ge=0)
+    notes_created: Optional[int] = Field(None, ge=0)
+    highlights_made: Optional[int] = Field(None, ge=0)
+    bookmarks_added: Optional[int] = Field(None, ge=0)
+
+class PageTimeResponse(PageTimeBase, TimestampMixin):
+    id: UUID
+    session_id: UUID
+    pdf_id: UUID
+    start_time: datetime
+    end_time: Optional[datetime] = None
+    duration_seconds: int = 0
+    active_time_seconds: int = 0
+    idle_time_seconds: int = 0
+    activity_count: int = 0
+    click_count: int = 0
+    scroll_count: int = 0
+    zoom_changes: int = 0
+    reading_speed_wpm: Optional[Decimal] = None
+    difficulty_rating: int = 1
+    comprehension_estimate: Decimal = 0.0
+    notes_created: int = 0
+    highlights_made: int = 0
+    bookmarks_added: int = 0
+    scroll_positions: List[Dict[str, Any]] = []
+    zoom_levels: List[Dict[str, Any]] = []
+    
+    # Computed properties
+    reading_speed_pages_per_hour: Optional[float] = None
+    engagement_score: Optional[float] = None
+    
+    class Config:
+        from_attributes = True
+
+class PageActivityEvent(BaseModel):
+    """Real-time page activity event"""
+    event_type: str = Field(..., pattern=r"^(click|scroll|zoom|note|highlight|bookmark)$")
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    position: Optional[Dict[str, Any]] = None
+    data: Optional[Dict[str, Any]] = None
+
+# ============================================================================
+# POMODORO SCHEMAS
+# ============================================================================
+
+class PomodoroSessionBase(BaseModel):
+    cycle_type: str = Field(..., pattern=r"^(work|short_break|long_break)$")
+    planned_duration_minutes: int = Field(..., ge=1, le=60)
+
+class PomodoroSessionCreate(PomodoroSessionBase):
+    study_session_id: UUID
+    cycle_number: int = Field(..., ge=1, le=20)
+
+class PomodoroSessionUpdate(BaseModel):
+    effectiveness_rating: Optional[int] = Field(None, ge=1, le=5)
+    interrupted: Optional[bool] = None
+    interruptions: Optional[int] = Field(None, ge=0)
+
+class PomodoroSessionResponse(PomodoroSessionBase, TimestampMixin):
+    id: UUID
+    study_session_id: UUID
+    cycle_number: int
+    actual_duration_minutes: int = 0
+    started_at: datetime
+    completed_at: Optional[datetime] = None
+    completed: bool = False
+    interrupted: bool = False
+    interruptions: int = 0
+    effectiveness_rating: Optional[int] = None
+    productivity_score: Decimal = 0.0
+    focus_score: Decimal = 0.0
+    xp_earned: int = 0
+    
+    # Computed properties
     completion_percentage: Optional[float] = None
     
     class Config:
         from_attributes = True
 
-class ExerciseBase(BaseModel):
-    title: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
+class PomodoroSettings(BaseModel):
+    """User Pomodoro preferences"""
+    work_duration: int = Field(default=25, ge=5, le=60)
+    short_break_duration: int = Field(default=5, ge=1, le=30)
+    long_break_duration: int = Field(default=15, ge=5, le=60)
+    cycles_before_long_break: int = Field(default=4, ge=2, le=10)
+    auto_start_breaks: bool = True
+    auto_start_cycles: bool = False
+    sound_enabled: bool = True
+    notifications_enabled: bool = True
+
+# ============================================================================
+# READING SPEED & ANALYTICS SCHEMAS
+# ============================================================================
+
+class ReadingSpeedBase(BaseModel):
+    pages_per_minute: Decimal = Field(..., ge=0, le=10)
+    words_per_minute: Decimal = Field(..., ge=0, le=2000)
+    content_type: str = Field(default="mixed", pattern=r"^(text|math|diagram|mixed)$")
     difficulty_level: int = Field(default=1, ge=1, le=5)
-    estimated_time_minutes: int = Field(default=30, ge=5, le=240)
-    points_possible: int = Field(default=100, ge=1, le=1000)
 
-class ExerciseCreate(ExerciseBase):
-    exercise_set_id: UUID
-    exercise_pdf_id: Optional[UUID] = None
+class ReadingSpeedCreate(ReadingSpeedBase):
+    pdf_id: Optional[UUID] = None
+    topic_id: Optional[UUID] = None
+    session_id: Optional[UUID] = None
+    estimated_words: int = Field(default=0, ge=0)
+    session_duration: int = Field(..., ge=1)  # Minutes
+    environmental_factors: Dict[str, Any] = {}
 
-class ExerciseUpdate(BaseModel):
-    title: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = None
-    difficulty_level: Optional[int] = Field(None, ge=1, le=5)
-    estimated_time_minutes: Optional[int] = Field(None, ge=5, le=240)
-    points_possible: Optional[int] = Field(None, ge=1, le=1000)
-    exercise_pdf_id: Optional[UUID] = None
-    user_score: Optional[int] = None
-    notes: Optional[str] = None
-
-class ExerciseResponse(ExerciseBase, TimestampMixin, ProgressMixin):
+class ReadingSpeedResponse(ReadingSpeedBase, TimestampMixin):
     id: UUID
     user_id: UUID
-    exercise_set_id: UUID
-    exercise_pdf_id: Optional[UUID] = None
-    user_score: Optional[int] = None
-    completion_date: Optional[datetime] = None
-    notes: Optional[str] = None
-    display_order: int = 0
-    score_percentage: Optional[float] = None
-    
-    class Config:
-        from_attributes = True
-
-class ExercisePageLinkBase(BaseModel):
-    page_number: int = Field(..., ge=1)
-    link_type: str = Field(default="related", pattern=r"^(related|prerequisite|practice)$")
-    relevance_score: Decimal = Field(default=1.0, ge=0.0, le=1.0)
-    description: Optional[str] = None
-
-class ExercisePageLinkCreate(ExercisePageLinkBase):
-    exercise_id: UUID
-    main_pdf_id: UUID
-
-class ExercisePageLinkResponse(ExercisePageLinkBase, TimestampMixin):
-    id: UUID
-    exercise_id: UUID
-    main_pdf_id: UUID
-    
-    class Config:
-        from_attributes = True
-
-class ExerciseCompletion(BaseModel):
-    """Schema for marking exercise completion"""
-    user_score: Optional[int] = Field(None, ge=0, le=1000)
-    notes: Optional[str] = None
-
-# ============================================================================
-# BULK OPERATIONS SCHEMAS
-# ============================================================================
-
-class BulkPDFUpload(BaseModel):
-    """Schema for bulk PDF upload"""
-    topic_id: UUID
-    pdf_type: str = Field(default="study", pattern=r"^(study|exercise|reference)$")
-    auto_extract_exercises: bool = False
-
-class FileProcessingStatus(BaseModel):
-    """Schema for file processing status"""
-    file_name: str
-    status: str  # uploading, processing, completed, failed
-    progress_percentage: float = 0.0
-    error_message: Optional[str] = None
     pdf_id: Optional[UUID] = None
+    topic_id: Optional[UUID] = None
+    session_id: Optional[UUID] = None
+    characters_per_minute: Decimal = 0.0
+    estimated_words: int = 0
+    time_of_day: int
+    day_of_week: int
+    session_duration: int
+    environmental_factors: Dict[str, Any] = {}
+    
+    class Config:
+        from_attributes = True
 
-class BulkProcessingResponse(BaseModel):
-    """Response for bulk operations"""
-    total_files: int
-    successful: int
-    failed: int
-    processing: int
-    files: List[FileProcessingStatus]
+class TimeEstimateBase(BaseModel):
+    estimate_type: str = Field(..., pattern=r"^(completion|session|daily_target|page)$")
+    estimated_minutes: int = Field(..., ge=1, le=10080)  # Up to 1 week
+    confidence_level: str = Field(default="medium", pattern=r"^(low|medium|high)$")
+
+class TimeEstimateCreate(TimeEstimateBase):
+    pdf_id: Optional[UUID] = None
+    topic_id: Optional[UUID] = None
+    estimated_sessions: int = Field(default=1, ge=1, le=100)
+    factors_used: Dict[str, Any] = {}
+
+class TimeEstimateResponse(TimeEstimateBase, TimestampMixin):
+    id: UUID
+    user_id: UUID
+    pdf_id: Optional[UUID] = None
+    topic_id: Optional[UUID] = None
+    estimated_sessions: int = 1
+    confidence_score: Decimal = 0.5
+    accuracy_score: Optional[Decimal] = None
+    based_on_sessions: int = 0
+    based_on_pages: int = 0
+    factors_used: Dict[str, Any] = {}
+    valid_until: Optional[datetime] = None
+    is_active: bool = True
+    actual_minutes: Optional[int] = None
+    variance_percentage: Optional[Decimal] = None
+    
+    # Computed properties
+    estimated_hours: Optional[float] = None
+    is_expired: Optional[bool] = None
+    
+    class Config:
+        from_attributes = True
+
+class UserStatisticBase(BaseModel):
+    stat_type: str = Field(..., pattern=r"^(daily|weekly|monthly|lifetime)$")
+    stat_date: datetime
+
+class UserStatisticResponse(UserStatisticBase, TimestampMixin):
+    id: UUID
+    user_id: UUID
+    total_study_minutes: int = 0
+    total_active_minutes: int = 0
+    total_sessions: int = 0
+    pages_read: int = 0
+    average_focus_score: Decimal = 0.0
+    average_productivity_score: Decimal = 0.0
+    average_reading_speed: Decimal = 0.0
+    notes_created: int = 0
+    highlights_made: int = 0
+    bookmarks_added: int = 0
+    exercises_completed: int = 0
+    study_streak: int = 0
+    consistency_score: Decimal = 0.0
+    pomodoro_cycles_completed: int = 0
+    pomodoro_success_rate: Decimal = 0.0
+    xp_earned: int = 0
+    level_achieved: int = 1
+    achievements_unlocked: List[str] = []
+    
+    # Computed properties
+    efficiency_score: Optional[float] = None
+    daily_average_minutes: Optional[float] = None
+    
+    class Config:
+        from_attributes = True
 
 # ============================================================================
-# UTILITY SCHEMAS (EXISTING + NEW)
+# ANALYTICS & INSIGHTS SCHEMAS
+# ============================================================================
+
+class StudyAnalyticsRequest(BaseModel):
+    """Request for study analytics"""
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    topic_ids: Optional[List[UUID]] = None
+    pdf_ids: Optional[List[UUID]] = None
+    granularity: str = Field(default="daily", pattern=r"^(hourly|daily|weekly|monthly)$")
+
+class StudyAnalyticsResponse(BaseModel):
+    """Comprehensive study analytics"""
+    period: Dict[str, Any]
+    overview: Dict[str, Any]
+    trends: List[Dict[str, Any]]
+    performance: Dict[str, Any]
+    reading_speed: Dict[str, Any]
+    focus_patterns: Dict[str, Any]
+    recommendations: List[str]
+    achievements: List[Dict[str, Any]]
+
+class ReadingPatternsResponse(BaseModel):
+    """Reading patterns analysis"""
+    optimal_study_hours: List[int]
+    best_performing_days: List[int]
+    reading_speed_trends: List[Dict[str, Any]]
+    focus_score_trends: List[Dict[str, Any]]
+    productivity_trends: List[Dict[str, Any]]
+    content_type_preferences: Dict[str, Any]
+    difficulty_performance: Dict[str, Any]
+
+class TimeEstimationAccuracy(BaseModel):
+    """Time estimation accuracy analysis"""
+    overall_accuracy: Decimal
+    accuracy_by_type: Dict[str, Decimal]
+    variance_trends: List[Dict[str, Any]]
+    improvement_suggestions: List[str]
+
+class FocusAnalytics(BaseModel):
+    """Focus and attention analytics"""
+    average_focus_score: Decimal
+    focus_trends: List[Dict[str, Any]]
+    distraction_patterns: Dict[str, Any]
+    optimal_session_length: int
+    interruption_analysis: Dict[str, Any]
+    improvement_recommendations: List[str]
+
+# ============================================================================
+# EXISTING UTILITY SCHEMAS
 # ============================================================================
 
 class SearchRequest(BaseModel):
@@ -323,3 +503,30 @@ class HealthCheckResponse(BaseModel):
     version: str = "2.0.0"
     database: str = "connected"
     services: Dict[str, str] = {}
+
+# ============================================================================
+# REAL-TIME UPDATES SCHEMAS
+# ============================================================================
+
+class SessionUpdateEvent(BaseModel):
+    """Real-time session update event"""
+    event_type: str = Field(..., pattern=r"^(start|pause|resume|end|activity|page_change)$")
+    session_id: UUID
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    data: Dict[str, Any] = {}
+
+class TimerUpdateEvent(BaseModel):
+    """Real-time timer update event"""
+    event_type: str = Field(..., pattern=r"^(tick|pause|resume|complete|interrupt)$")
+    timer_type: str = Field(..., pattern=r"^(session|pomodoro|page)$")
+    timer_id: UUID
+    current_seconds: int
+    total_seconds: int
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+class ProgressUpdateEvent(BaseModel):
+    """Real-time progress update event"""
+    event_type: str = Field(..., pattern=r"^(page_complete|exercise_complete|milestone_reached)$")
+    user_id: UUID
+    progress_data: Dict[str, Any]
+    timestamp: datetime = Field(default_factory=datetime.utcnow)

@@ -1,41 +1,63 @@
-"""
-Database configuration using studysprint-db package
-"""
+"""Database configuration - Simple version"""
 
-from sqlalchemy import text
-from studysprint_db.config.database import (
-    Base, 
-    create_database_engine, 
-    create_session_factory
-)
-from studysprint_db.config.settings import db_settings
+from sqlalchemy import create_engine, text
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+import logging
 
-# Import user models from studysprint-db
-from studysprint_db.models.user import User, UserSession, UserPreferences
+from app.config.settings import settings
 
-# Import our models directly (not through __init__.py to avoid circular imports)
-# We'll import these as needed in specific files, not globally here
+logger = logging.getLogger(__name__)
 
-# Create engine and session factory
-engine = create_database_engine(db_settings.DATABASE_URL, echo=db_settings.DB_ECHO)
-SessionLocal = create_session_factory(engine)
+# Create engine
+try:
+    engine = create_engine(settings.DATABASE_URL, echo=settings.DEBUG)
+    logger.info("✅ Database engine created")
+except Exception as e:
+    logger.error(f"❌ Database engine creation failed: {e}")
+    engine = None
+
+# Create sessionmaker
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Create base class
+Base = declarative_base()
 
 def get_db():
     """Dependency to get database session"""
+    if engine is None:
+        return None
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
 
+def test_db_connection():
+    """Test database connection"""
+    if engine is None:
+        logger.error("❌ Database engine not created")
+        return False
+    
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT 1"))
+            logger.info("✅ Database connection successful")
+            return True
+    except Exception as e:
+        logger.error(f"❌ Database connection failed: {e}")
+        return False
+
 async def init_db():
     """Initialize database tables"""
-    # Import models here to avoid circular imports
-    from app.models import Topic
-    
-    # Create all tables
-    Base.metadata.create_all(bind=engine)
+    if engine is not None:
+        Base.metadata.create_all(bind=engine)
+        logger.info("✅ Database tables created")
+    else:
+        logger.error("❌ Cannot create tables - no database engine")
 
 async def close_db():
     """Close database connections"""
-    engine.dispose()
+    if engine is not None:
+        engine.dispose()
+        logger.info("✅ Database connections closed")
